@@ -1,0 +1,190 @@
+@startuml
+
+struct Cell {
+    + expression: string;
+    + value: int;
+    + id: string;
+}
+
+struct CellNode {
+    + dependants_ids: string[];
+    + dependencies_ids: string[];
+}
+
+struct EvaluationResult {
+    + new_value: int;
+    + new_dependencies: string[];
+}
+
+abstract class TableState {
+    + load(cells: Map<string, Cell>): void;
+    + get_cell(cell_id: string): Cell;
+    + get_non_empty_cells(): Map<string, Cell>;
+    + update_cell(cell_id: string, new_expression: string): string[];
+}
+
+class TableStateImpl {
+    - cells_map: Map<string, Cell>;
+    - dependency_graph_map: Map<string, CellNode>;
+    - evaluator: Evaluator;
+
+    + load(cells: Map<string, Cell>): void;
+    + get_cell(cell_id: string): Cell;
+    + get_non_empty_cells(): Map<string, Cell>;
+    + update_cell(cell_id: string, new_expression: string): string[];
+}
+
+abstract class ApplicationGUI {
+    + update_cell_text(cell_id: string, new_text: string): void;
+    + update_cell_display(cell_id: string, expression: string, value: int): void;
+    + show_error(message: string): void;
+    + clear_table(): void;
+    + register_cell_update_reaction(reaction: CellUpdateReaction): void;
+    + register_save_reaction(reaction: SaveReaction): void;
+    + register_load_reaction(reaction: LoadReaction): void;
+    + run(): void;
+}
+
+abstract class CellUpdateReaction {
+    + execute(cell_id: string, new_text: string): void;
+}
+
+abstract class SaveReaction {
+    + execute(filename: string): void;
+}
+
+abstract class LoadReaction {
+    + execute(filename: string): void;
+}
+
+class CellUpdateReactionImpl <<nested in Application>> {
+    + execute(cell_id: string, new_text: string): void;
+}
+
+class SaveReactionImpl <<nested in Application>> {
+    + execute(filename: string): void;
+}
+
+class LoadReactionImpl <<nested in Application>> {
+    + execute(filename: string): void;
+}
+
+class EvaluationCore {
+    + value(n: string): int;
+    + add(a: int, b: int): int;
+    + subtract(a: int, b: int): int;
+    + divide(a: int, b: int): int;
+    + multiply(a: int, b: int): int;
+    + divide_func(a: int, b: int): int;
+    + modulo(a: int, b: int): int;
+    + mmax(numbers: int[]): int;
+    + mmin(numbers: int[]): int;
+    + cell_reference(id: string, values: Map<string, int>): int;
+    + unary_plus(operand: int): int;
+    + unary_minus(operand: int): int;
+}
+
+abstract class Evaluator {
+    + evaluate(expression: string, cell_values: Map<string, int>): EvaluationResult;
+}
+
+class EvaluatorVisitorAdapter {
+    + evaluate(expression: string, cell_values: Map<string, int>): EvaluationResult;
+}
+
+class GrammarVisitor {
+    - cells: Map<string, int>;
+    - dependencies: Set<string>;
+
+    + visitExpressionRoot(ctx: ExpressionRootContext): (int, string[]);
+    + visitNumberExpr(ctx: NumberExprContext): int;
+    + visitAddExpr(ctx: AddExprContext): int;
+    + visitSubExpr(ctx: SubExprContext): int;
+    + visitParenExpr(ctx: ParenExprContext): int;
+    + visitMultExpr(ctx: MultExprContext): int;
+    + visitDivExpr(ctx: DivExprContext): int;
+    + visitDivFuncExpr(ctx: DivFuncExprContext): int;
+    + visitModExpr(ctx: ModExprContext): int;
+    + visitPlusExpr(ctx: PlusExprContext): int;
+    + visitMinusExpr(ctx: MinusExprContext): int;
+    + visitMminExpr(ctx: MminExprContext): int;
+    + visitMmaxExpr(ctx: MmaxExprContext): int;
+    + visitCellRefExpr(ctx: CellRefExprContext): int;
+}
+
+class Application {
+    - gui: ApplicationGUI;
+    - state: TableState;
+
+    + on_cell_update(cell_id: string, new_text: string): void;
+    + on_save(filename: string): void;
+    + on_load(filename: string): void;
+    + run(): void;
+}
+
+class Qt6ApplicationGUI {
+    - window: Window;
+    - cell_update_reaction: CellUpdateReaction;
+    - save_reaction: SaveReaction;
+    - load_reaction: LoadReaction;
+
+    + update_cell_text(cell_id: string, new_text: string): void;
+    + update_cell_display(cell_id: string, expression: string, value: int): void;
+    + show_error(message: string): void;
+    + clear_table(): void;
+    + register_cell_update_reaction(reaction: CellUpdateReaction): void;
+    + register_save_reaction(reaction: SaveReaction): void;
+    + register_load_reaction(reaction: LoadReaction): void;
+    + run(): void;
+}
+
+class Window {
+    - cell_update_reaction: CellUpdateReaction;
+    - save_reaction: SaveReaction;
+    - load_reaction: LoadReaction;
+    - formula_input: QLineEdit;
+    - view_switcher: QComboBox;
+    - table: QTableWidget;
+    - view_style: string;
+
+    + update_cell_display(cell_id: string, expression: string, value: int): void;
+    + update_cell_text(cell_id: string, new_text: string): void;
+    + clear_table(): void;
+    + show_error(message: string): void;
+    + on_view_style_changed(index: int): void;
+    + on_formula_return_pressed(): void;
+    + on_table_item_changed(item: QTableWidgetItem): void;
+    + save_file(): void;
+    + load_file(): void;
+}
+
+Application o-- ApplicationGUI
+Application o-- TableState
+TableStateImpl o-- Evaluator
+
+TableStateImpl -- CellNode
+
+EvaluatorVisitorAdapter ..> GrammarVisitor : creates
+GrammarVisitor --> EvaluationCore : uses
+Evaluator -- EvaluationResult
+
+Cell -- TableState
+
+TableState <|-- TableStateImpl
+ApplicationGUI <|-- Qt6ApplicationGUI
+Evaluator <|-- EvaluatorVisitorAdapter
+
+CellUpdateReaction <|-- CellUpdateReactionImpl
+SaveReaction <|-- SaveReactionImpl
+LoadReaction <|-- LoadReactionImpl
+
+Application +-- CellUpdateReactionImpl
+Application +-- SaveReactionImpl
+Application +-- LoadReactionImpl
+
+Qt6ApplicationGUI o-- Window
+Window o-- CellUpdateReaction
+Window o-- SaveReaction
+Window o-- LoadReaction
+
+@enduml
